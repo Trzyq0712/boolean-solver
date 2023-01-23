@@ -1,0 +1,18 @@
+[package]
+name = "boolean-solver"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+egg = "0.9.2"
+
+
+[[bin]]
+name = "test"
+test = false
+
+[lib]
+name = "boolean_lang"
+path = "src/lib/mod.rs"
