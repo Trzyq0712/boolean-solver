@@ -68,19 +68,33 @@ pub fn simplify(expr: &RecExpr<BooleanLanguage>) -> RecExpr<BooleanLanguage> {
     best
 }
 
+#[derive(Debug)]
+pub enum Equiv {
+    Yes,
+    No,
+    Timeout(StopReason),
+}
+
 pub fn check_equivalence(
     expr_a: &RecExpr<BooleanLanguage>,
     expr_b: &RecExpr<BooleanLanguage>,
-) -> bool {
+) -> Equiv {
     let runner = Runner::default()
         .with_iter_limit(100)
         .with_time_limit(Duration::from_secs(120))
-        .with_node_limit(30_000)
+        .with_node_limit(200_000)
         .with_expr(expr_a)
         .with_expr(expr_b)
         .run(&boolean_algebra_rules());
 
-    !runner.egraph.equivs(expr_a, expr_b).is_empty()
+    match runner.egraph.equivs(expr_a, expr_b).is_empty() {
+        false => Equiv::Yes,
+        true => match runner.stop_reason {
+            Some(reason) if matches!(reason, StopReason::Saturated) => Equiv::No,
+            Some(reason) => Equiv::Timeout(reason),
+            None => panic!(),
+        },
+    }
 }
 
 #[cfg(test)]
@@ -103,6 +117,15 @@ mod tests {
     fn check_contains() {
         let complex = expr("(* (~ (=> p q)) (=> p r))");
         let simplified = expr("(* p (* (~ q) r))");
-        assert!(check_equivalence(&complex, &simplified))
+        let res = check_equivalence(&complex, &simplified);
+        assert!(matches!(res, Equiv::Yes));
+    }
+
+    #[test]
+    fn check_not_equiv() {
+        let e1 = expr("(* p q)");
+        let e2 = expr("(+ p q)");
+        let res = check_equivalence(&e1, &e2);
+        assert!(matches!(res, Equiv::No));
     }
 }
